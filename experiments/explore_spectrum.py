@@ -29,6 +29,22 @@ def strongest_peak(img, dc_radius=5):
     return iy - cy, ix - cx
 
 
+def peak_ratio(img, window=True, ksize=5, dc_radius=6):
+    """Magnitude divided by its local median: ~1 is background, >>1 is an isolated peak.
+
+    Returns the ratio map (centred) with the low-frequency disc set to 0.
+    """
+    if window:
+        h, w = img.shape
+        img = img * np.outer(np.hanning(h), np.hanning(w))
+    mag = np.abs(np.fft.fftshift(np.fft.fft2(img))).astype(np.float32)
+    ratio = mag / (cv2.medianBlur(mag, ksize) + 1e-9)
+    h, w = ratio.shape
+    yy, xx = np.mgrid[-(h // 2):h - h // 2, -(w // 2):w - w // 2]
+    ratio[np.hypot(yy, xx) < dc_radius] = 0
+    return ratio
+
+
 # ---------- load image ----------
 path = sys.argv[1] if len(sys.argv) > 1 else "data/samples/cameraman.png"
 img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
@@ -54,6 +70,15 @@ rows = [
 for name, im in rows:
     print(f"{name:28s} strongest peak: {strongest_peak(im)}")
 
+# ---------- peak / local-median ratio ----------
+# Highest ratio in the spectrum, and the ratio at the planted (20, 35) peak.
+print(f"\n{'':28s} {'max ratio':>18s} {'ratio at (20,35)':>20s}")
+print(f"{'':28s} {'no win':>8s} {'Hann':>9s} {'no win':>9s} {'Hann':>10s}")
+for name, im in rows:
+    r0, r1 = peak_ratio(im, window=False), peak_ratio(im, window=True)
+    print(f"{name:28s} {r0.max():8.1f} {r1.max():9.1f} "
+          f"{r0[128 + 20, 128 + 35]:9.1f} {r1[128 + 20, 128 + 35]:10.1f}")
+
 # ---------- plot ----------
 # One column per test image, three rows: image / spectrum / spectrum + Hann.
 # Wide layout so everything fits on a laptop screen.
@@ -75,4 +100,5 @@ ax[2, 0].set_ylabel("spectrum + Hann\nfy")
 for a in ax[2]:
     a.set_xlabel("fx", fontsize=8)
 plt.tight_layout()
+plt.savefig("docs/figures/explore_spectrum.png", dpi=120)
 plt.show()
