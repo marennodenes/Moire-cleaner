@@ -2,20 +2,20 @@ import numpy as np
 from pathlib import Path
 from moire.visualize import show_three_images
 
-# 테스트용 이미지 생성
+# Create a test image
 clean = np.full((100, 100, 3), 128, dtype=np.uint8)
 
-# 인공적인 줄무늬 추가
+# Add artificial noise
 noisy = clean.copy()
 noisy[:, ::5] = 200
 
-# 아직 필터가 없으므로 원본을 복사
+# No filter applied yet, so copy the noisy image
 filtered = noisy.copy()
 
-# 결과 저장 경로
+# Set the output path
 output_path = Path("results") / "test_comparison.png"
 
-# 이미지 비교 및 저장
+# Compare and save the images
 show_three_images(
     clean,
     noisy,

@@ -1,14 +1,14 @@
 import numpy as np
 from moire.metrics import evaluate_image
 
-# 깨끗한 테스트 이미지 생성
+# Create a clean test image
 clean = np.full((100, 100, 3), 128, dtype=np.uint8)
 
-# 일부 픽셀에 차이를 만든 이미지
+# Create an image with modified pixel values
 processed = clean.copy()
 processed[20:40, 20:40] = 150
 
-# 성능 평가
+# Evaluate image quality
 results = evaluate_image(clean, processed)
 
 for name, value in results.items():
