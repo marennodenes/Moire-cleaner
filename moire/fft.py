@@ -14,4 +14,3 @@ def apply_ifft(fshift):
     f_ishift = np.fft.ifftshift(fshift)
     img_back = np.fft.ifft2(f_ishift)
     return np.real(img_back)
-

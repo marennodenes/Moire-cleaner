@@ -11,7 +11,6 @@ def load_image(path):
 
     return image
 
-
 def save_image(path, image):
     """Save an image and create directories if needed."""
     path = Path(path)
