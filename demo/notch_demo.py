@@ -5,12 +5,12 @@ from moire.notch import apply_notch_filter
 from moire.fft import apply_fft, get_magnitude_spectrum, apply_ifft
 
 img = cv2.imread(
-    "data/samples/cameraman.png",
+    "data/samples/github_screen.jpg",
     cv2.IMREAD_GRAYSCALE
 )
 
 if img is None:
-    raise FileNotFoundError("Fant ikke cameraman.png")
+    raise FileNotFoundError("Fant ikke github_screen.jpg")
 
 fft_result = apply_fft(img)
 
