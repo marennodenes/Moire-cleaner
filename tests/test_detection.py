@@ -75,6 +75,16 @@ def test_one_peak_per_mirror_pair(images):
             assert p.fy > 0 or (p.fy == 0 and p.fx > 0)
 
 
+@pytest.mark.parametrize("fy, fx", [(64, 20), (20, 64), (64, 0)])
+def test_nyquist_peak_is_inside_spectrum(clean, fy, fx):
+    """Peaks at the highest frequency must still be valid spectrum indices."""
+    patch = add_wave(clean, 2 * fy, 2 * fx)[:128, :128]   # 128 patch: halve freq
+    peaks = detect_peaks(patch)
+    assert peaks
+    for p in peaks:
+        assert -64 <= p.fy < 64 and -64 <= p.fx < 64
+
+
 def test_sorted_strongest_first(images):
     ratios = [p.ratio for p in detect_peaks(images["two"])]
     assert ratios == sorted(ratios, reverse=True)

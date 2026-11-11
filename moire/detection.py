@@ -34,7 +34,9 @@ def detect_peaks(patch, threshold=THRESHOLD, ksize=5, dc_radius=6):
     """Return moiré peaks in a grayscale patch, strongest first.
 
     Only one peak per mirror pair is returned, chosen so that fy > 0,
-    or fy == 0 and fx > 0.
+    or fy == 0 and fx > 0. Coordinates always stay inside the shifted
+    spectrum (-h//2 <= fy < h - h//2), so at the Nyquist row of an even-sized
+    patch fy can be -h//2 instead.
     """
     ratio = ratio_map(patch, ksize, dc_radius)
     h, w = ratio.shape
@@ -47,6 +49,9 @@ def detect_peaks(patch, threshold=THRESHOLD, ksize=5, dc_radius=6):
         fy, fx = int(y - h // 2), int(x - w // 2)
         if fy < 0 or (fy == 0 and fx < 0):
             fy, fx = -fy, -fx
+        # the mirror of the Nyquist row/column wraps around to the other side
+        fy = (fy + h // 2) % h - h // 2
+        fx = (fx + w // 2) % w - w // 2
         r = float(ratio[y, x])
         if (fy, fx) not in peaks or r > peaks[(fy, fx)].ratio:
             peaks[(fy, fx)] = Peak(fy, fx, r)
