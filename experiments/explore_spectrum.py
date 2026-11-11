@@ -55,12 +55,24 @@ for name, im in rows:
     print(f"{name:28s} strongest peak: {strongest_peak(im)}")
 
 # ---------- plot ----------
-fig, ax = plt.subplots(len(rows), 3, figsize=(12, 4 * len(rows)))
-for i, (name, im) in enumerate(rows):
-    ax[i, 0].imshow(im, cmap="gray");                   ax[i, 0].set_title(name)
-    ax[i, 1].imshow(spectrum(im), cmap="gray");         ax[i, 1].set_title("spectrum")
-    ax[i, 2].imshow(spectrum(im, True), cmap="gray");   ax[i, 2].set_title("spectrum + Hann")
-for a in ax.flat:
-    a.axis("off")
+# One column per test image, three rows: image / spectrum / spectrum + Hann.
+# Wide layout so everything fits on a laptop screen.
+ZOOM = 64                                   # show frequencies -ZOOM..ZOOM
+c = 128                                     # centre of the 256x256 spectrum
+ext = [-ZOOM - 0.5, ZOOM + 0.5, ZOOM + 0.5, -ZOOM - 0.5]   # axes in frequency units
+
+fig, ax = plt.subplots(3, len(rows), figsize=(2.6 * len(rows), 7.5))
+for j, (name, im) in enumerate(rows):
+    ax[0, j].imshow(im, cmap="gray")
+    ax[0, j].set_title(name, fontsize=9)
+    ax[0, j].axis("off")
+    for i, win in ((1, False), (2, True)):
+        S = spectrum(im, win)[c - ZOOM:c + ZOOM + 1, c - ZOOM:c + ZOOM + 1]
+        ax[i, j].imshow(S, cmap="gray", interpolation="nearest", extent=ext)
+        ax[i, j].tick_params(labelsize=7)
+ax[1, 0].set_ylabel("spectrum\nfy")
+ax[2, 0].set_ylabel("spectrum + Hann\nfy")
+for a in ax[2]:
+    a.set_xlabel("fx", fontsize=8)
 plt.tight_layout()
 plt.show()
