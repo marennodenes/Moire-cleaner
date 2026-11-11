@@ -127,3 +127,56 @@ def test_analyze_patch_without_moire(images):
     result = analyze_patch(images["clean"], patch_id=0)
     assert result.peaks == []
     assert result.intensity == 0.0
+
+
+# ---------- robustness ----------
+
+@pytest.mark.parametrize("fy, fx", [(0, 30), (30, 0), (-40, 40), (100, 110), (127, 0)])
+def test_wave_directions_and_high_frequencies(clean, fy, fx):
+    peaks = detect_peaks(add_wave(clean, fy, fx))
+    assert len(peaks) == 1
+    assert same_pair(peaks[0], fy, fx)
+
+
+def test_gaussian_noise_is_not_moire(clean):
+    rng = np.random.default_rng(0)
+    noise = rng.normal(0, 0.1, clean.shape).astype(np.float32)
+    assert detect_peaks(clean + noise) == []
+    peaks = detect_peaks(add_wave(clean, 20, 35) + noise)
+    assert len(peaks) == 1
+    assert same_pair(peaks[0], 20, 35)
+
+
+@pytest.mark.parametrize("patch", [np.zeros((64, 64)), np.full((64, 64), 0.5)])
+def test_flat_patch_gives_nothing(patch):
+    result = analyze_patch(patch, patch_id=0)
+    assert result.peaks == []
+    assert result.intensity == 0.0
+
+
+def test_intensity_grows_with_amplitude(clean):
+    values = [analyze_patch(add_wave(clean, 20, 35, amp), 0).intensity
+              for amp in (0.02, 0.05, 0.15, 0.3)]
+    assert values == sorted(values)
+    assert values[0] > 0
+
+
+def test_square_wave_finds_harmonics(clean):
+    """Real moiré is not a pure cosine: overtones must be found too."""
+    H, W = clean.shape
+    y, x = np.mgrid[0:H, 0:W]
+    img = clean + 0.1 * np.sign(np.cos(2 * np.pi * (20 * y / H + 35 * x / W)))
+    peaks = detect_peaks(img)
+    assert any(same_pair(p, 20, 35) for p in peaks)    # fundamental
+    assert any(same_pair(p, 60, 105) for p in peaks)   # 3rd harmonic
+
+
+def test_128_patches(clean):
+    """Every 128x128 patch: no false peaks without moiré, correct peak with it."""
+    wavy = add_wave(clean, 20, 35)
+    for i in (0, 64, 128):
+        for j in (0, 64, 128):
+            assert detect_peaks(clean[i:i + 128, j:j + 128]) == []
+            peaks = detect_peaks(wavy[i:i + 128, j:j + 128])
+            assert len(peaks) == 1
+            assert same_pair(peaks[0], 10, 17.5, tol=1)
