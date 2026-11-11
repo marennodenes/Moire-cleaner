@@ -2,26 +2,9 @@
 
 Main entry point: analyze_image(img_bgr) -> list[PatchResult].
 
-How it works (background in docs/01-explore-spectrum.md; measured on real
-photos with experiments/evaluate_real.py):
-
-1. Scale the image to 1/4 and convert to Lab (L = brightness, a/b = colour).
-2. For every patch, look for isolated peaks in the spectrum
-   (magnitude / local median > PEAK_THRESHOLD):
-   - in L, using windows 1x, 2x and 4x the patch (coarse moiré needs a
-     bigger window to show enough stripes),
-   - in a and b, using the 1x window (black text has no colour, so moiré
-     behind text shows up there).
-   A peak is kept only if
-   - it is coloured: colour/brightness energy > COLOUR_MIN at that
-     frequency (screen moiré is green/magenta; wood grain, fabric and
-     printed edges are mostly brightness), and
-   - it is not on a line through the centre of the spectrum (straight
-     edges give such lines).
-3. Use the neighbours, since moiré covers connected areas:
-   - remove hits that have no neighbouring patch with a hit,
-   - for patches without a hit, look for frequencies that at least 2
-     neighbours have, with the lower NEIGHBOUR_THRESHOLD.
+Per patch: find isolated peaks in the spectrum (brightness and colour
+channels), keep only coloured peaks that are not edge lines, then use
+neighbouring patches to remove lone hits and fill gaps.
 """
 from collections import namedtuple
 
@@ -31,19 +14,16 @@ import numpy as np
 from moire.datatypes import Peak, PatchResult
 
 SCALE = 0.25                # detection runs on the image scaled to this
-WINDOWS = (1, 2, 4)         # window sizes for the brightness channel
-PEAK_THRESHOLD = 5.0        # peak / local median, pass 1
-NEIGHBOUR_THRESHOLD = 3.5   # same, when looking for a neighbour's frequency
+WINDOWS = (1, 2, 4)         # window sizes (x patch) for the brightness channel
+PEAK_THRESHOLD = 5.0        # peak / local median
+NEIGHBOUR_THRESHOLD = 3.5   # same, when checking a neighbour's frequency
 COLOUR_MIN = 0.4            # colour / brightness energy at the peak
-EDGE_STEP = 3               # bins inwards/outwards checked for edge lines
+EDGE_STEP = 3               # bins checked inwards/outwards for edge lines
 NEIGHBOUR_SUPPORT = 2       # neighbours that must share a frequency
-SATURATION = 50.0           # ratio that counts as intensity 1.0
+SATURATION = 50.0           # ratio that gives intensity 1.0
 
-# A peak in the spectrum of one window, in FFT bins (internal).
-SpectrumPeak = namedtuple("SpectrumPeak", "fy fx ratio")
-# An accepted peak: window size k, side s of the window in scaled pixels,
-# its bin and ratio (internal).
-_Found = namedtuple("_Found", "k s fy fx ratio")
+SpectrumPeak = namedtuple("SpectrumPeak", "fy fx ratio")   # in FFT bins
+_Found = namedtuple("_Found", "k s fy fx ratio")           # k: window, s: its side
 
 
 # ---------- spectrum of one window ----------
@@ -76,13 +56,10 @@ def _ratio_of(mag, ksize=5, dc_radius=6):
 
 
 def detect_peaks(patch, threshold=PEAK_THRESHOLD, ksize=5, dc_radius=6):
-    """Isolated peaks in the spectrum of a single-channel patch, strongest first.
+    """Isolated peaks in a single-channel patch, in FFT bins, strongest first.
 
-    Returns SpectrumPeak(fy, fx, ratio) in FFT bins of this patch. Only one
-    peak per mirror pair is returned, chosen so that fy > 0, or fy == 0 and
-    fx > 0. Coordinates always stay inside the shifted spectrum
-    (-h//2 <= fy < h - h//2), so at the Nyquist row of an even-sized patch
-    fy can be -h//2 instead.
+    One peak per mirror pair (fy > 0, or fy == 0 and fx > 0; at the Nyquist
+    row fy can be -h//2 so it stays inside the spectrum).
     """
     return _peaks_in(ratio_map(patch, ksize, dc_radius), threshold)
 
@@ -109,10 +86,7 @@ def _peaks_in(ratio, threshold):
 
 
 def estimate_intensity(peaks, threshold=NEIGHBOUR_THRESHOLD, saturation=SATURATION):
-    """Moiré strength in [0, 1] from the strongest peak ratio (log scale).
-
-    ratio == threshold -> 0, ratio >= saturation -> 1. No peaks -> 0.0.
-    """
+    """Strongest peak ratio on a log scale: threshold -> 0, saturation -> 1."""
     if not peaks:
         return 0.0
     r = max(p.ratio for p in peaks)
@@ -123,10 +97,8 @@ def estimate_intensity(peaks, threshold=NEIGHBOUR_THRESHOLD, saturation=SATURATI
 # ---------- whole image ----------
 
 def _window(lab, r, c, k, P):
-    """k*P window centred on patch (r, c), pushed inside the image, shrunk to P.
-
-    Returns the window and its side s in scaled pixels (before shrinking).
-    """
+    """k*P window centred on patch (r, c), kept inside the image, shrunk to P.
+    Also returns its side s before shrinking."""
     H, W = lab.shape[:2]
     s = min(k * P, H, W)
     y0 = int(np.clip(r * P + P // 2 - s // 2, 0, H - s))
@@ -157,6 +129,7 @@ def _on_line(mag, p, y, x):
 def _find(lab, r, c, P):
     """Pass 1: accepted peaks of patch (r, c)."""
     found = []
+    # bigger windows show coarse moiré; colour channels show moiré behind text
     for k in WINDOWS:
         win, s = _window(lab, r, c, k, P)
         mags = [magnitude(win[..., ch]) for ch in range(3)]
@@ -212,14 +185,10 @@ def _to_peaks(found, patch_size):
 
 
 def analyze_image(img_bgr, patch_size=512):
-    """Split a colour image into patches and detect moiré in each.
+    """One PatchResult per patch, row by row (see docs/interface-detection.md).
 
-    img_bgr     colour image as loaded by cv2.imread (H x W x 3)
-    patch_size  patch side in original image pixels (multiple of 4, >= 128)
-
-    Returns one PatchResult per patch, row by row, also for patches without
-    moiré (peaks=[], intensity=0.0). Patches that do not fit at the right or
-    bottom edge are left out.
+    img_bgr: colour image from cv2.imread. patch_size: in original pixels,
+    multiple of 4 and >= 128. Patches that do not fit at the edges are left out.
     """
     img = np.asarray(img_bgr)
     if img.ndim != 3 or img.shape[2] != 3:
