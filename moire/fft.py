@@ -17,20 +17,24 @@ def get_magnitude_spectrum(fshift):
     magnitude_spectrum = 20 * np.log(np.abs(fshift) + 1)
     return magnitude_spectrum
 
+def apply_ifft(fshift):
+    f_ishift = np.fft.ifftshift(fshift)
+    img_back = np.fft.ifft2(f_ishift)
+    return np.real(img_back)
 
 fft_result = apply_fft(img)
-spectrum = get_magnitude_spectrum(fft_result)
+reconstructed = apply_ifft(fft_result)
 
 plt.figure(figsize=(12, 6))
 
 plt.subplot(1, 2, 1)
 plt.imshow(img, cmap="gray")
 plt.title("Original Image")
-plt.axis("off")
+#plt.axis("off")
 
 plt.subplot(1, 2, 2)
-plt.imshow(spectrum, cmap="gray")
-plt.title("Magnitude Spectrum")
-plt.axis("off")
+plt.imshow(reconstructed, cmap="gray")
+plt.title("Reconstructed Image")
+#plt.axis("off")
 
 plt.show()
