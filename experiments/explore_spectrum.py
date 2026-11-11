@@ -33,6 +33,8 @@ def peak_ratio(img, window=True, ksize=5, dc_radius=6):
     """Magnitude divided by its local median: ~1 is background, >>1 is an isolated peak.
 
     Returns the ratio map (centred) with the low-frequency disc set to 0.
+    Kept as it was for this experiment; the version used by the program is
+    moire.detection.ratio_map (which also subtracts the mean first).
     """
     if window:
         h, w = img.shape
