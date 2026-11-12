@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 
-def show_comparison(original, processed, save_path=None):
+def show_comparison(original, processed, save_path=None, show=True):
     original_rgb = cv2.cvtColor(original, cv2.COLOR_BGR2RGB)
     processed_rgb = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
 
@@ -24,7 +24,8 @@ def show_comparison(original, processed, save_path=None):
         save_path.parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_path, dpi=150, bbox_inches="tight")
 
-    plt.show()
+    if show:
+        plt.show()
     plt.close(fig)
 
 
