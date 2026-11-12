@@ -10,7 +10,7 @@ from moire.visualize import show_comparison
 BASE_DIR = Path(__file__).resolve().parent
 
 # Usage: python main.py [image path]
-INPUT_PATH = Path(sys.argv[1]) if len(sys.argv) > 1 else BASE_DIR / "results" / "test_image.png"
+INPUT_PATH = Path(sys.argv[1]) if len(sys.argv) > 1 else BASE_DIR / "data" / "real" / "opencv_screen.jpg"
 OUTPUT_PATH = BASE_DIR / "results" / "processed_image.png"
 COMPARISON_PATH = BASE_DIR / "results" / "comparison.png"
 
@@ -39,8 +39,7 @@ def main():
     show_comparison(
         image,
         processed,
-        save_path=COMPARISON_PATH,
-        show=False
+        save_path=COMPARISON_PATH
     )
 
     print("Pipeline execution completed!")
