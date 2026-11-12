@@ -287,3 +287,23 @@ def test_needs_colour_image(bad):
 def test_bad_patch_size(big_clean, size):
     with pytest.raises(ValueError):
         analyze_image(big_clean, patch_size=size)
+
+
+# ---------- grey (colourless) moiré ----------
+
+def _load_sample(name):
+    data = np.fromfile(str(SAMPLE.parent / name), dtype=np.uint8)
+    return cv2.imdecode(data, cv2.IMREAD_COLOR)
+
+
+def test_strong_grey_stripes_are_found():
+    """global_moire.png: grey stripes at (0.08, 0.08) everywhere."""
+    results = analyze_image(_load_sample("global_moire.png"))
+    found = [r for r in results
+             if any(same_pair(p, 0.08, 0.08, tol=0.005) for p in r.peaks)]
+    assert len(found) >= 18
+
+
+def test_clean_photo_has_no_grey_peaks():
+    results = analyze_image(_load_sample("clean.png"))
+    assert all(not r.peaks for r in results)
