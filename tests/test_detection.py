@@ -24,7 +24,8 @@ def same_pair(peak, fy, fx, tol=0):
 
 @pytest.fixture(scope="module")
 def clean():
-    img = cv2.imread(str(SAMPLE), cv2.IMREAD_GRAYSCALE)
+    data = np.fromfile(str(SAMPLE), dtype=np.uint8)
+    img = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
     return img.astype(np.float32)[:256, :256] / 255
 
 
@@ -182,7 +183,8 @@ def test_128_patches(clean):
 @pytest.fixture(scope="module")
 def big_clean():
     """Cameraman as a 1024 x 2048 colour image without moiré."""
-    gray = cv2.imread(str(SAMPLE), cv2.IMREAD_GRAYSCALE)
+    data = np.fromfile(str(SAMPLE), dtype=np.uint8)
+    gray = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
     big = cv2.resize(gray, (2048, 1024), interpolation=cv2.INTER_CUBIC)
     return cv2.cvtColor(big, cv2.COLOR_GRAY2BGR)
 

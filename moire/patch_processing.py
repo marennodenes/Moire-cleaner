@@ -20,8 +20,12 @@ def get_patch_positions(length, patch_size, stride):
     return positions
 
 
+
 def divide_into_patches(image, patch_size, stride):
-    height, width = image.shape
+    if image.ndim not in (2, 3):
+        raise ValueError("Image must be 2D or 3D.")
+
+    height, width = image.shape[:2]
 
     y_positions = get_patch_positions(height, patch_size, stride)
     x_positions = get_patch_positions(width, patch_size, stride)
@@ -41,16 +45,25 @@ def divide_into_patches(image, patch_size, stride):
 
 
 def merge_patches(patches, image_shape, weight_mode="uniform"):
-    if weight_mode not in ("uniform", "triangular"):
+    if weight_mode not in ("uniform", "triangular", "hann"):
         raise ValueError("Unsupported weight mode.")
 
-    height, width = image_shape
+    if len(image_shape) not in (2, 3):
+        raise ValueError("Image shape must be 2D or 3D.")
 
-    accumulated = np.zeros((height, width), dtype=np.float64)
+    height, width = image_shape[:2]
+
+    accumulated = np.zeros(image_shape, dtype=np.float64)
     weight_sum = np.zeros((height, width), dtype=np.float64)
 
     for patch, y, x in patches:
-        h, w = patch.shape
+        if patch.ndim != len(image_shape):
+            raise ValueError("Patch dimensions do not match image.")
+
+        if len(image_shape) == 3 and patch.shape[2] != image_shape[2]:
+            raise ValueError("Patch channel count does not match image.")
+
+        h, w = patch.shape[:2]
 
         # Validate patch coordinates and boundaries.
         if y < 0 or x < 0 or y + h > height or x + w > width:
@@ -59,24 +72,35 @@ def merge_patches(patches, image_shape, weight_mode="uniform"):
         if weight_mode == "uniform":
             weights = np.ones((h, w), dtype=np.float64)
 
-        else:
+        elif weight_mode == "triangular":
             if h != w:
-                raise ValueError("Triangular mode requires square patches.")
-
+                raise ValueError(
+                    "Triangular mode requires square patches."
+                )
             weights = create_triangular_weights(h)
 
-        accumulated[y:y+h, x:x+w] += (
-            patch.astype(np.float64) * weights
-        )
+        else:  # hann
+            if h != w:
+                raise ValueError(
+                    "Hann mode requires square patches."
+                )
+            weights = create_hann_weights(h)
 
+        if len(image_shape) == 3:
+            weighted_patch = patch.astype(np.float64) * weights[:, :, None]
+        else:
+            weighted_patch = patch.astype(np.float64) * weights
+
+        accumulated[y:y+h, x:x+w] += weighted_patch
         weight_sum[y:y+h, x:x+w] += weights
 
     if np.any(weight_sum == 0):
         raise ValueError("Some pixels are not covered by patches.")
 
-    merged_image = accumulated / weight_sum
+    if len(image_shape) == 3:
+        return accumulated / weight_sum[:, :, None]
 
-    return merged_image
+    return accumulated / weight_sum
 
 
 def process_local_fft(patches, fft_function):
@@ -146,5 +170,26 @@ def create_triangular_weights(patch_size):
     )
 
     weights_2d = np.outer(weights_1d, weights_1d)
+
+    return weights_2d.astype(np.float64)
+
+def create_hann_weights(patch_size, epsilon=0.05):
+    if patch_size <= 0:
+        raise ValueError("Patch size must be positive.")
+
+    if not np.isfinite(epsilon) or not 0 < epsilon <= 1:
+        raise ValueError("Epsilon must be in (0, 1].")
+
+    if patch_size == 1:
+        return np.ones((1, 1), dtype=np.float64)
+
+    window_1d = np.hanning(patch_size)
+
+    # Ensure positive weights at image boundaries.
+    window_1d = (
+        epsilon + (1.0 - epsilon) * window_1d
+    )
+
+    weights_2d = np.outer(window_1d, window_1d)
 
     return weights_2d.astype(np.float64)
