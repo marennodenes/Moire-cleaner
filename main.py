@@ -1,14 +1,16 @@
+import sys
 from pathlib import Path
 
 from moire.image_io import load_image, save_image
-from moire.pipeline import process_image
+from moire.pipeline import moire_filter, process_image
 from moire.metrics import evaluate_image
 from moire.visualize import show_comparison
 
 
 BASE_DIR = Path(__file__).resolve().parent
 
-INPUT_PATH = BASE_DIR / "results" / "test_image.png"
+# Usage: python main.py [image path]
+INPUT_PATH = Path(sys.argv[1]) if len(sys.argv) > 1 else BASE_DIR / "results" / "test_image.png"
 OUTPUT_PATH = BASE_DIR / "results" / "processed_image.png"
 COMPARISON_PATH = BASE_DIR / "results" / "comparison.png"
 
@@ -19,7 +21,7 @@ def main():
     print("Image loaded:", image.shape)
 
     # 2. Process image
-    processed = process_image(image)
+    processed = process_image(image, moire_filter)
     print("Image processing completed!")
 
     # 3. Save processed image
@@ -37,7 +39,8 @@ def main():
     show_comparison(
         image,
         processed,
-        save_path=COMPARISON_PATH
+        save_path=COMPARISON_PATH,
+        show=False
     )
 
     print("Pipeline execution completed!")
