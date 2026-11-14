@@ -3,7 +3,8 @@
 Main entry point: analyze_image(img_bgr) -> list[PatchResult].
 
 Per patch: find isolated peaks in the spectrum (brightness and colour
-channels), keep only coloured peaks that are not edge lines, then use
+channels), keep coloured peaks (or very strong grey ones) that are not
+edge lines, then use
 neighbouring patches to remove lone hits and fill gaps.
 """
 from collections import namedtuple
@@ -18,6 +19,7 @@ WINDOWS = (1, 2, 4)         # window sizes (x patch) for the brightness channel
 PEAK_THRESHOLD = 5.0        # peak / local median
 NEIGHBOUR_THRESHOLD = 3.5   # same, when checking a neighbour's frequency
 COLOUR_MIN = 0.4            # colour / brightness energy at the peak
+GREY_MIN_RATIO = 30.0       # grey peaks (below COLOUR_MIN) need this ratio
 EDGE_STEP = 3               # bins checked inwards/outwards for edge lines
 NEIGHBOUR_SUPPORT = 2       # neighbours that must share a frequency
 SATURATION = 50.0           # ratio that gives intensity 1.0
@@ -114,6 +116,11 @@ def _colour(mags, y, x):
     return np.hypot(mags[1][y, x], mags[2][y, x]) / (mags[0][y, x] + 1e-9)
 
 
+def _accepted(mags, y, x, ratio):
+    """Coloured peak, or a grey one too strong for texture (wood, fabric: <= ~21)."""
+    return _colour(mags, y, x) > COLOUR_MIN or ratio >= GREY_MIN_RATIO
+
+
 def _on_line(mag, p, y, x):
     """True if the peak continues inwards/outwards along its direction."""
     P = mag.shape[0]
@@ -137,14 +144,14 @@ def _find(lab, r, c, P):
             ratio = _ratio_of(mags[ch])
             for p in _peaks_in(ratio, PEAK_THRESHOLD):
                 y, x = (p.fy + P // 2) % P, (p.fx + P // 2) % P
-                if _on_line(mags[ch], p, y, x) or _colour(mags, y, x) <= COLOUR_MIN:
+                if _on_line(mags[ch], p, y, x) or not _accepted(mags, y, x, p.ratio):
                     continue
                 found.append(_Found(k, s, p.fy, p.fx, p.ratio))
     return found
 
 
 def _has_frequency(lab, r, c, P, f):
-    """Pass 2: does patch (r, c) have a coloured peak within +-2 bins of f?"""
+    """Pass 2: does patch (r, c) have an accepted peak within +-2 bins of f?"""
     win, s = _window(lab, r, c, f.k, P)
     mags = [magnitude(win[..., ch]) for ch in range(3)]
     y0, x0 = f.fy + P // 2, f.fx + P // 2
@@ -156,7 +163,7 @@ def _has_frequency(lab, r, c, P, f):
             continue
         dy, dx = np.unravel_index(np.argmax(box), box.shape)
         y, x = ys.start + dy, xs.start + dx
-        if _colour(mags, y, x) > COLOUR_MIN:
+        if _accepted(mags, y, x, float(box.max())):
             return _Found(f.k, s, y - P // 2, x - P // 2, float(box.max()))
     return None
 
