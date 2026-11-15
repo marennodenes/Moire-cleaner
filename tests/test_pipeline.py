@@ -1,4 +1,7 @@
+from types import SimpleNamespace
+
 import numpy as np
+
 from moire.pipeline import process_image
 
 
@@ -73,3 +76,41 @@ def test_moire_filter_small_images(size):
     result = moire_filter(image)
     assert result.shape == image.shape
     assert result.dtype == np.uint8
+
+
+def test_combined_filter_applies_screen_clean_to_notch_result(monkeypatch):
+    import moire.pipeline as pipeline
+
+    image = np.full((512, 512, 3), 128, dtype=np.uint8)
+    detections = [SimpleNamespace(peaks=[object()])]
+    notch_result = np.full_like(image, 100)
+    mask = np.ones(image.shape[:2], dtype=np.float32)
+    cleaned = np.full_like(image, 90)
+    calls = {}
+
+    monkeypatch.setattr(pipeline, "analyze_image", lambda img, patch_size: detections)
+    monkeypatch.setattr(
+        pipeline,
+        "process_overlapping_patches",
+        lambda img, results, **kwargs: notch_result.astype(np.float32),
+    )
+
+    def fake_mask(img, patch_size, detections):
+        calls["mask"] = (img, patch_size, detections)
+        return mask
+
+    def fake_clean(img, mask):
+        calls["clean"] = (img, mask)
+        return cleaned
+
+    monkeypatch.setattr(pipeline, "moire_mask", fake_mask)
+    monkeypatch.setattr(pipeline, "clean_screen_moire", fake_clean)
+
+    result = pipeline.moire_filter_and_screen_clean(image, patch_size=256)
+
+    assert np.array_equal(result, cleaned)
+    assert calls["mask"][0] is image
+    assert calls["mask"][1] == 256
+    assert calls["mask"][2] is detections
+    assert np.array_equal(calls["clean"][0], notch_result)
+    assert calls["clean"][1] is mask
