@@ -40,12 +40,27 @@ def gaussian_notch(shape, center, sigma):
     )
 
 
-def apply_notch_filter(fft_image, peaks, sigma):
+
+def apply_notch_filter(fft_image, peaks, sigma, min_distance=16):
+    """
+    Apply Gaussian notch filtering to detected frequency peaks.
+
+    Peaks too close to the DC component are ignored to avoid
+    suppressing very low spatial frequencies.
+    """
     rows, cols = fft_image.shape
 
     H = np.ones((rows, cols), dtype=np.float32)
 
     for peak in peaks:
+        fy, fx = peak_to_fft_bins((rows, cols), peak)
+
+        # Ignore peaks too close to the DC component.
+        distance_from_dc = np.hypot(fy, fx)
+
+        if distance_from_dc < min_distance:
+            continue
+
         peak1, peak2 = peak_to_coordinates(
             (rows, cols),
             peak

@@ -15,7 +15,7 @@ from moire.visualize import show_comparison
 BASE_DIR = Path(__file__).resolve().parent
 
 # Select the input image here. Paths relative to the project root are supported.
-INPUT_PATH = BASE_DIR / "data" / "real" / "eclass_screen.jpg"
+INPUT_PATH = BASE_DIR / "data" / "real" / "github_screen.jpg"
 
 # Optional processing mode flags:
 #   Default: notch filter followed by screen cleaning
