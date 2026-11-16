@@ -13,7 +13,7 @@ def test_local_notch_integration():
     xx, yy = np.meshgrid(x, x)
 
     image = 128 + 40 * np.cos(
-        2 * np.pi * 8 * xx / size
+        2 * np.pi * 16 * xx / size
     )
 
     # Step 1: Apply FFT.
@@ -21,7 +21,7 @@ def test_local_notch_integration():
 
     # Step 2: Define the known frequency peak.
     peaks = [
-        Peak(fy=0.0, fx=8 / size, ratio=10.0)
+        Peak(fy=0.0, fx=16 / size, ratio=10.0)
     ]
 
     # Step 3: Apply Gaussian Notch Filter.

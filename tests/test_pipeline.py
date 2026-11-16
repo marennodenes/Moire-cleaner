@@ -114,3 +114,30 @@ def test_combined_filter_applies_screen_clean_to_notch_result(monkeypatch):
     assert calls["mask"][2] is detections
     assert np.array_equal(calls["clean"][0], notch_result)
     assert calls["clean"][1] is mask
+
+
+def test_combined_filter_uses_detected_moire_mask(monkeypatch):
+    import moire.pipeline as pipeline
+
+    image = _load("global_moire.png")[:1024, :1024]
+    calls = {}
+
+    monkeypatch.setattr(
+        pipeline,
+        "process_overlapping_patches",
+        lambda img, detections, **kwargs: img.astype(np.float32),
+    )
+
+    def fake_clean(img, mask):
+        calls["image"] = img
+        calls["mask"] = mask
+        return img
+
+    monkeypatch.setattr(pipeline, "clean_screen_moire", fake_clean)
+
+    result = pipeline.moire_filter_and_screen_clean(image)
+
+    assert result.shape == image.shape
+    assert np.array_equal(calls["image"], image)
+    assert calls["mask"].shape == image.shape[:2]
+    assert np.any(calls["mask"] > 0)
