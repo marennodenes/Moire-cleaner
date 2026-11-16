@@ -34,11 +34,30 @@ def compare_images(reference_path, image_paths, output_csv):
     return results
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Evaluate moire removal performance."
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["global", "local"],
+        required=True,
+        help="Synthetic moire type to evaluate."
+    )
+    parser.add_argument(
+        "--processed",
+        default="results/processed_image.png",
+        help="Path to the filtered image."
+    )
+
+    args = parser.parse_args()
+
     compare_images(
         reference_path="data/samples/clean.png",
         image_paths={
-            "Noisy_Global": "data/samples/global_moire.png",
-            "Noisy_Local": "data/samples/local_moire.png"
+            "Before_Filtering": f"data/samples/{args.mode}_moire.png",
+            "After_Filtering": args.processed
         },
-        output_csv="results/comparison.csv"
+        output_csv=f"results/{args.mode}_filter_comparison.csv"
     )
