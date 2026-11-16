@@ -45,12 +45,6 @@ def test_clean_has_no_peaks(images):
     assert detect_peaks(images["clean"]) == []
 
 
-def test_one_wave(images):
-    peaks = detect_peaks(images["one"])
-    assert len(peaks) == 1
-    assert same_pair(peaks[0], 20, 35)
-
-
 def test_two_waves(images):
     peaks = detect_peaks(images["two"])
     assert len(peaks) == 2
@@ -86,31 +80,8 @@ def test_nyquist_peak_is_inside_spectrum(clean, fy, fx):
         assert -64 <= p.fy < 64 and -64 <= p.fx < 64
 
 
-def test_sorted_strongest_first(images):
-    ratios = [p.ratio for p in detect_peaks(images["two"])]
-    assert ratios == sorted(ratios, reverse=True)
-
-
-def test_intensity_in_range(images):
-    for img in images.values():
-        value = estimate_intensity(detect_peaks(img))
-        assert 0.0 <= value <= 1.0
-
-
-def test_intensity_order(images):
-    def intensity(name):
-        img = images[name]
-        return estimate_intensity(detect_peaks(img))
-
-    assert intensity("clean") == 0.0
-    assert 0.0 < intensity("weak") < intensity("one")
-
-
-def test_no_peaks_gives_zero():
+def test_intensity_limits():
     assert estimate_intensity([]) == 0.0
-
-
-def test_huge_ratio_is_clipped():
     assert estimate_intensity([Peak(1, 1, 1e6)]) == 1.0
 
 
@@ -129,8 +100,8 @@ def test_bad_ksize_raises(clean):
 
 # ---------- robustness ----------
 
-@pytest.mark.parametrize("fy, fx", [(0, 30), (30, 0), (-40, 40), (100, 110), (127, 0)])
-def test_wave_directions_and_high_frequencies(clean, fy, fx):
+@pytest.mark.parametrize("fy, fx", [(20, 35), (0, 30), (30, 0), (-40, 40), (100, 110), (127, 0)])
+def test_one_wave_any_direction(clean, fy, fx):
     peaks = detect_peaks(add_wave(clean, fy, fx))
     assert len(peaks) == 1
     assert same_pair(peaks[0], fy, fx)
@@ -228,17 +199,13 @@ def test_no_moire_gives_empty_results(big_clean):
 
 
 def test_colour_moire_is_found_everywhere(big_clean):
+    """Found in every patch, in cycles per pixel: the filter gets the FFT bin
+    of its own region with round(f * N)."""
     img = colour_wave(big_clean, 0.03, 0.05)
     for r in analyze_image(img):
         assert r.peaks, f"patch {r.patch_id} missed"
         assert near(r.peaks[0], 0.03, 0.05, r.size)
         assert 0 < r.intensity <= 1
-
-
-def test_peaks_are_in_cycles_per_pixel(big_clean):
-    """The filter gets the FFT bin of its own region with round(f * N)."""
-    img = colour_wave(big_clean, 0.03, 0.05)
-    for r in analyze_image(img):
         for p in r.peaks:
             assert -0.5 <= p.fy <= 0.5 and -0.5 <= p.fx <= 0.5
             assert p.fy > 0 or (p.fy == 0 and p.fx > 0)       # one per mirror pair

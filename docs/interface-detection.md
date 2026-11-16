@@ -78,8 +78,9 @@ Most false hits on the new photos are rows of light text on a dark screen.
 
 ## Known limits
 
-- **Only coloured stripes are reported.** Screen moiré is coloured;
-  brightness-only stripes (wood grain, fabric) are ignored on purpose.
+- **Mostly coloured stripes are reported.** Screen moiré is coloured;
+  brightness-only stripes (wood grain, fabric) are ignored on purpose,
+  unless they are very strong (ratio ≥ 30, `GREY_MIN_RATIO`).
 - **Light text on a dark screen** can be reported as moiré. Suppressing it
   may blur the text, so a gentle filter at low intensity is safer.
 - **Large, coarse swirls** are still often missed.

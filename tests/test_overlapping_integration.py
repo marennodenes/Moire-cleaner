@@ -8,7 +8,7 @@ def test_overlapping_integration():
     height, width = 128, 192
 
     yy, xx = np.mgrid[:height, :width]
-    pattern = np.cos(2 * np.pi * 8 * xx / 128)
+    pattern = np.cos(2 * np.pi * 24 * xx / 128)
 
     image = np.stack([
         100 + 30 * pattern,
@@ -23,7 +23,7 @@ def test_overlapping_integration():
             y=0,
             x=0,
             size=128,
-            peaks=[Peak(0.0, 8 / 128, 10.0)],
+            peaks=[Peak(0.0, 24 / 128, 10.0)],
             intensity=0.8
         )
     ]

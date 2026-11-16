@@ -13,14 +13,14 @@ def test_bgr_notch_integration():
 
     # Create three channels with the same periodic
     # frequency but different amplitudes.
-    b = 100 + 30 * np.cos(2 * np.pi * 8 * xx / size)
-    g = 120 + 40 * np.cos(2 * np.pi * 8 * xx / size)
-    r = 140 + 50 * np.cos(2 * np.pi * 8 * xx / size)
+    b = 100 + 30 * np.cos(2 * np.pi * 16 * xx / size)
+    g = 120 + 40 * np.cos(2 * np.pi * 16 * xx / size)
+    r = 140 + 50 * np.cos(2 * np.pi * 16 * xx / size)
 
     image_bgr = np.stack([b, g, r], axis=2)
 
     peaks = [
-        Peak(fy=0.0, fx=8 / size, ratio=10.0)
+        Peak(fy=0.0, fx=16 / size, ratio=10.0)
     ]
 
     filtered_channels = []
