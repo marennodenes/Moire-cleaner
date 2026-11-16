@@ -10,7 +10,7 @@ def test_adaptive_notch():
     x = np.arange(size)
     xx, yy = np.meshgrid(x, x)
 
-    pattern = np.cos(2 * np.pi * 8 * xx / size)
+    pattern = np.cos(2 * np.pi * 24 * xx / size)
 
     image_bgr = np.stack([
         100 + 30 * pattern,
@@ -24,7 +24,7 @@ def test_adaptive_notch():
         y=0,
         x=0,
         size=size,
-        peaks=[Peak(fy=0.0, fx=8 / size, ratio=10.0)],
+        peaks=[Peak(fy=0.0, fx=24 / size, ratio=10.0)],
         intensity=0.8,
     )
 
