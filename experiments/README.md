@@ -28,7 +28,8 @@ used during the development of Moire-cleaner.
 - Some scripts require input files that are not tracked in this repository.
 - compare_peak_modes.py expects data/samples/test_image.png.
 - compare_peak_crops.py requires previously generated images in experiments/results/.
-- Some experiment modules are imported by tests and must be preserved.
+- Tests for these scripts are in `tests/experiments/` and import modules from
+  this directory.
 - Generated outputs should not be committed.
 - These scripts have not all been independently validated against the current datasets.
 
