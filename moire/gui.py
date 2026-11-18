@@ -11,7 +11,8 @@ import cv2
 from moire.image_io import load_image, save_image
 from moire.pipeline import moire_filter_and_screen_clean, process_image
 
-PREVIEW_SIZE = (460, 460)  # max preview width, height (px)
+PREVIEW_SIZE = (340, 340)  # max preview width, height (px)
+PLACEHOLDERS = {"Original": "No image chosen yet", "Cleaned": "Not cleaned yet"}
 IMAGE_TYPES = [
     ("Images", "*.jpg *.jpeg *.png *.bmp *.tif *.tiff"),
     ("All files", "*.*"),
@@ -44,39 +45,46 @@ class App:
 
         root.title("Moiré cleaner")
 
+        ttk.Label(
+            root, text="Moiré cleaner", font=("Helvetica", 18, "bold"), anchor="center"
+        ).pack(pady=(12, 0))
+
         bar = ttk.Frame(root, padding=10)
-        bar.pack(fill="x")
+        bar.pack()
         self.choose_btn = ttk.Button(bar, text="Choose image…", command=self.choose)
-        self.choose_btn.pack(side="left")
+        self.choose_btn.pack(side="left", padx=4)
         self.clean_btn = ttk.Button(
             bar, text="Clean moiré", command=self.clean, state="disabled"
         )
-        self.clean_btn.pack(side="left", padx=8)
+        self.clean_btn.pack(side="left", padx=4)
         self.save_btn = ttk.Button(
             bar, text="Save result…", command=self.save, state="disabled"
         )
-        self.save_btn.pack(side="left")
+        self.save_btn.pack(side="left", padx=4)
 
         views = ttk.Frame(root, padding=(10, 0))
         views.pack(fill="both", expand=True)
         self.labels = {}
+        views.rowconfigure(0, weight=1)
         for column, name in enumerate(("Original", "Cleaned")):
             frame = ttk.LabelFrame(views, text=name, padding=5)
             frame.grid(row=0, column=column, padx=5, pady=5, sticky="nsew")
-            label = ttk.Label(frame, anchor="center")
-            label.pack()
+            label = ttk.Label(frame, text=PLACEHOLDERS[name], anchor="center")
+            label.pack(fill="both", expand=True)
             self.labels[name] = label
-            views.columnconfigure(column, weight=1)
+            views.columnconfigure(column, weight=1, uniform="views")
 
         self.progress = ttk.Progressbar(root, mode="indeterminate")
         self.progress.pack(fill="x", padx=10)
         self.status = tk.StringVar(value="Choose an image to get started.")
-        ttk.Label(root, textvariable=self.status, padding=10).pack(fill="x")
+        ttk.Label(
+            root, textvariable=self.status, padding=10, anchor="center", justify="center"
+        ).pack(fill="x")
 
     def show(self, name, image):
         photo = to_photo_image(image)
         self.photos[name] = photo
-        self.labels[name].configure(image=photo)
+        self.labels[name].configure(image=photo, text="")
 
     def choose(self):
         path = filedialog.askopenfilename(
@@ -93,7 +101,7 @@ class App:
             return
         self.image, self.result, self.source_path = image, None, Path(path)
         self.show("Original", image)
-        self.labels["Cleaned"].configure(image="")
+        self.labels["Cleaned"].configure(image="", text=PLACEHOLDERS["Cleaned"])
         self.photos.pop("Cleaned", None)
         self.save_btn.configure(state="disabled")
         self.clean_btn.configure(state="normal")
@@ -150,4 +158,18 @@ class App:
 def run(initial_dir=None):
     root = tk.Tk()
     App(root, initial_dir)
+
+    # Small window, centered on screen
+    width, height = 780, 540
+    x = max((root.winfo_screenwidth() - width) // 2, 0)
+    y = max((root.winfo_screenheight() - height) // 3, 0)
+    root.geometry(f"{width}x{height}+{x}+{y}")
+    root.minsize(600, 440)
+
+    # Show the window on top (a script launched from a terminal on macOS
+    # otherwise starts in the background)
+    root.lift()
+    root.attributes("-topmost", True)
+    root.after(200, lambda: root.attributes("-topmost", False))
+    root.focus_force()
     root.mainloop()
