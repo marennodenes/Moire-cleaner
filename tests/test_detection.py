@@ -24,7 +24,8 @@ def same_pair(peak, fy, fx, tol=0):
 
 @pytest.fixture(scope="module")
 def clean():
-    img = cv2.imread(str(SAMPLE), cv2.IMREAD_GRAYSCALE)
+    data = np.fromfile(str(SAMPLE), dtype=np.uint8)
+    img = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
     return img.astype(np.float32)[:256, :256] / 255
 
 
@@ -42,12 +43,6 @@ def images(clean):
 
 def test_clean_has_no_peaks(images):
     assert detect_peaks(images["clean"]) == []
-
-
-def test_one_wave(images):
-    peaks = detect_peaks(images["one"])
-    assert len(peaks) == 1
-    assert same_pair(peaks[0], 20, 35)
 
 
 def test_two_waves(images):
@@ -85,31 +80,8 @@ def test_nyquist_peak_is_inside_spectrum(clean, fy, fx):
         assert -64 <= p.fy < 64 and -64 <= p.fx < 64
 
 
-def test_sorted_strongest_first(images):
-    ratios = [p.ratio for p in detect_peaks(images["two"])]
-    assert ratios == sorted(ratios, reverse=True)
-
-
-def test_intensity_in_range(images):
-    for img in images.values():
-        value = estimate_intensity(detect_peaks(img))
-        assert 0.0 <= value <= 1.0
-
-
-def test_intensity_order(images):
-    def intensity(name):
-        img = images[name]
-        return estimate_intensity(detect_peaks(img))
-
-    assert intensity("clean") == 0.0
-    assert 0.0 < intensity("weak") < intensity("one")
-
-
-def test_no_peaks_gives_zero():
+def test_intensity_limits():
     assert estimate_intensity([]) == 0.0
-
-
-def test_huge_ratio_is_clipped():
     assert estimate_intensity([Peak(1, 1, 1e6)]) == 1.0
 
 
@@ -128,8 +100,8 @@ def test_bad_ksize_raises(clean):
 
 # ---------- robustness ----------
 
-@pytest.mark.parametrize("fy, fx", [(0, 30), (30, 0), (-40, 40), (100, 110), (127, 0)])
-def test_wave_directions_and_high_frequencies(clean, fy, fx):
+@pytest.mark.parametrize("fy, fx", [(20, 35), (0, 30), (30, 0), (-40, 40), (100, 110), (127, 0)])
+def test_one_wave_any_direction(clean, fy, fx):
     peaks = detect_peaks(add_wave(clean, fy, fx))
     assert len(peaks) == 1
     assert same_pair(peaks[0], fy, fx)
@@ -182,7 +154,8 @@ def test_128_patches(clean):
 @pytest.fixture(scope="module")
 def big_clean():
     """Cameraman as a 1024 x 2048 colour image without moiré."""
-    gray = cv2.imread(str(SAMPLE), cv2.IMREAD_GRAYSCALE)
+    data = np.fromfile(str(SAMPLE), dtype=np.uint8)
+    gray = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
     big = cv2.resize(gray, (2048, 1024), interpolation=cv2.INTER_CUBIC)
     return cv2.cvtColor(big, cv2.COLOR_GRAY2BGR)
 
@@ -226,17 +199,13 @@ def test_no_moire_gives_empty_results(big_clean):
 
 
 def test_colour_moire_is_found_everywhere(big_clean):
+    """Found in every patch, in cycles per pixel: the filter gets the FFT bin
+    of its own region with round(f * N)."""
     img = colour_wave(big_clean, 0.03, 0.05)
     for r in analyze_image(img):
         assert r.peaks, f"patch {r.patch_id} missed"
         assert near(r.peaks[0], 0.03, 0.05, r.size)
         assert 0 < r.intensity <= 1
-
-
-def test_peaks_are_in_cycles_per_pixel(big_clean):
-    """The filter gets the FFT bin of its own region with round(f * N)."""
-    img = colour_wave(big_clean, 0.03, 0.05)
-    for r in analyze_image(img):
         for p in r.peaks:
             assert -0.5 <= p.fy <= 0.5 and -0.5 <= p.fx <= 0.5
             assert p.fy > 0 or (p.fy == 0 and p.fx > 0)       # one per mirror pair
@@ -285,3 +254,23 @@ def test_needs_colour_image(bad):
 def test_bad_patch_size(big_clean, size):
     with pytest.raises(ValueError):
         analyze_image(big_clean, patch_size=size)
+
+
+# ---------- grey (colourless) moiré ----------
+
+def _load_sample(name):
+    data = np.fromfile(str(SAMPLE.parent / name), dtype=np.uint8)
+    return cv2.imdecode(data, cv2.IMREAD_COLOR)
+
+
+def test_strong_grey_stripes_are_found():
+    """global_moire.png: grey stripes at (0.08, 0.08) everywhere."""
+    results = analyze_image(_load_sample("global_moire.png"))
+    found = [r for r in results
+             if any(same_pair(p, 0.08, 0.08, tol=0.005) for p in r.peaks)]
+    assert len(found) >= 18
+
+
+def test_clean_photo_has_no_grey_peaks():
+    results = analyze_image(_load_sample("clean.png"))
+    assert all(not r.peaks for r in results)

@@ -42,3 +42,12 @@ def test_apply_notch_filter_uses_peak_locations():
     assert filtered[40, 48] == pytest.approx(0.0)
     assert np.isfinite(filtered).all()
     assert filtered[0, 0] > 0.0
+
+
+def test_apply_notch_filter_ignores_peaks_near_dc():
+    peak = DummyPeak(0.0, 15 / 64)
+    fft_image = np.ones((64, 64), dtype=np.float32)
+
+    filtered = apply_notch_filter(fft_image, [peak], sigma=5)
+
+    assert np.array_equal(filtered, fft_image)
